@@ -7,6 +7,8 @@
 
 """Test a Fast R-CNN network on an imdb (image database)."""
 
+from __future__ import print_function
+
 from fast_rcnn.config import cfg, get_output_dir
 from fast_rcnn.bbox_transform import clip_boxes, bbox_transform_inv
 import argparse
@@ -18,6 +20,7 @@ from fast_rcnn.nms_wrapper import nms
 import cPickle
 from utils.blob import im_list_to_blob
 import os
+
 
 def _get_image_blob(im):
     """Converts an image into a network input.
@@ -55,6 +58,7 @@ def _get_image_blob(im):
 
     return blob, np.array(im_scale_factors)
 
+
 def _get_rois_blob(im_rois, im_scale_factors):
     """Converts RoIs into network inputs.
 
@@ -68,6 +72,7 @@ def _get_rois_blob(im_rois, im_scale_factors):
     rois, levels = _project_im_rois(im_rois, im_scale_factors)
     rois_blob = np.hstack((levels, rois))
     return rois_blob.astype(np.float32, copy=False)
+
 
 def _project_im_rois(im_rois, scales):
     """Project image RoIs into the image pyramid built by _get_image_blob.
@@ -97,13 +102,15 @@ def _project_im_rois(im_rois, scales):
 
     return rois, levels
 
+
 def _get_blobs(im, rois):
     """Convert an image and RoIs within that image into network inputs."""
-    blobs = {'data' : None, 'rois' : None}
+    blobs = {'data': None, 'rois': None}
     blobs['data'], im_scale_factors = _get_image_blob(im)
     if not cfg.TEST.HAS_RPN:
         blobs['rois'] = _get_rois_blob(rois, im_scale_factors)
     return blobs, im_scale_factors
+
 
 def im_detect(net, im, boxes=None):
     """Detect object classes in an image given object proposals.
@@ -148,7 +155,8 @@ def im_detect(net, im, boxes=None):
     # do forward
     forward_kwargs = {'data': blobs['data'].astype(np.float32, copy=False)}
     if cfg.TEST.HAS_RPN:
-        forward_kwargs['im_info'] = blobs['im_info'].astype(np.float32, copy=False)
+        forward_kwargs['im_info'] = blobs[
+            'im_info'].astype(np.float32, copy=False)
     else:
         forward_kwargs['rois'] = blobs['rois'].astype(np.float32, copy=False)
     blobs_out = net.forward(**forward_kwargs)
@@ -183,6 +191,7 @@ def im_detect(net, im, boxes=None):
 
     return scores, pred_boxes
 
+
 def vis_detections(im, class_name, dets, thresh=0.3):
     """Visual debugging of detections."""
     import matplotlib.pyplot as plt
@@ -198,9 +207,10 @@ def vis_detections(im, class_name, dets, thresh=0.3):
                               bbox[2] - bbox[0],
                               bbox[3] - bbox[1], fill=False,
                               edgecolor='g', linewidth=3)
-                )
+            )
             plt.title('{}  {:.3f}'.format(class_name, score))
             plt.show()
+
 
 def apply_nms(all_boxes, thresh):
     """Apply non-maximum suppression to all predicted boxes output by the
@@ -224,6 +234,7 @@ def apply_nms(all_boxes, thresh):
             nms_boxes[cls_ind][im_ind] = dets[keep, :].copy()
     return nms_boxes
 
+
 def test_net(net, test_path, max_per_image=100, thresh=0.05, vis=False):
     """Test a Fast R-CNN network on an image database."""
 
@@ -236,7 +247,7 @@ def test_net(net, test_path, max_per_image=100, thresh=0.05, vis=False):
     if not os.path.exists(output_dir):
         os.mkdir(output_dir)
 
-    image_list = os.listdir(test_path);
+    image_list = os.listdir(test_path)
     imdb = []
     for name in image_list:
         if name.endswith('.png'):
@@ -251,7 +262,7 @@ def test_net(net, test_path, max_per_image=100, thresh=0.05, vis=False):
     all_boxes = [[] for _ in xrange(num_classes)]
 
     # timers
-    _t = {'im_detect' : Timer(), 'misc' : Timer()}
+    _t = {'im_detect': Timer(), 'misc': Timer()}
 
     for i in xrange(num_images):
         # filter out any ground truth boxes
@@ -286,19 +297,19 @@ def test_net(net, test_path, max_per_image=100, thresh=0.05, vis=False):
                     all_boxes[j] = all_boxes[j][keep, :]
         _t['misc'].toc()
 
-        print 'im_detect: {:d}/{:d} {:.3f}s {:.3f}s' \
+        print('im_detect: {:d}/{:d} {:.3f}s {:.3f}s'
               .format(i + 1, num_images, _t['im_detect'].average_time,
-                      _t['misc'].average_time)
+                      _t['misc'].average_time))
 
         det_file = os.path.join(output_dir, imdb[i].rstrip('png') + 'txt')
         with open(det_file, 'w') as f:
             for j in xrange(1, num_classes):
                 for k in xrange(all_boxes[j].shape[0]):
-                    f.write('{} {} {} {} {} {:.2f}\n'.format(
+                    string = "{} 0 1 0 {} {} {} {} 0 0 0 0 0 0 0 {}".format(
                         classes[j],
-                        int(all_boxes[j][k,0]),
-                        int(all_boxes[j][k,1]),
-                        int(all_boxes[j][k,2]),
-                        int(all_boxes[j][k,3]),
-                        all_boxes[j][k,4]))
-
+                        int(all_boxes[j][k, 0]),
+                        int(all_boxes[j][k, 1]),
+                        int(all_boxes[j][k, 2]),
+                        int(all_boxes[j][k, 3]),
+                        all_boxes[j][k, 4])
+                    print(string, file=f)
